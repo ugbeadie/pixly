@@ -1,5 +1,5 @@
 from app.db import engine, Base
-from app import schemas  # IMPORTANT: registers tables
+from app import schemas  
 
 def create_tables():
     Base.metadata.create_all(bind=engine)
