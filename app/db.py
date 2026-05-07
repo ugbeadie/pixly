@@ -1,42 +1,72 @@
-from collections.abc import AsyncGenerator
-from datetime import datetime
-import uuid
+from dotenv import load_dotenv
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-from sqlalchemy import Column, String, Text, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    create_async_engine,
-    async_sessionmaker,
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set in .env file")
+
+engine = create_engine(DATABASE_URL)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
 )
-from sqlalchemy.orm import DeclarativeBase
 
-DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-engine = create_async_engine(DATABASE_URL, echo=True)
-async_session = async_sessionmaker(engine, expire_on_commit=False)
+Base = declarative_base()        
+
+# from collections.abc import AsyncGenerator
+# from datetime import datetime
+# import uuid
+
+# from sqlalchemy import Column, String, Text, DateTime
+# from sqlalchemy.dialects.postgresql import UUID
+# from sqlalchemy.ext.asyncio import (
+#     AsyncSession,
+#     create_async_engine,
+#     async_sessionmaker,
+# )
+# from sqlalchemy.orm import DeclarativeBase
+
+# DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+
+# engine = create_async_engine(DATABASE_URL, echo=True)
+# async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
-class Base(DeclarativeBase):
-    pass
+# class Base(DeclarativeBase):
+#     pass
 
 
-class Post(Base):
-    __tablename__ = "posts"
+# class Post(Base):
+#     __tablename__ = "posts"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    caption = Column(Text)
-    url = Column(String, nullable=False)
-    file_type = Column(String, nullable=False)
-    file_name = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-
-async def create_db_and_tables():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+#     caption = Column(Text)
+#     url = Column(String, nullable=False)
+#     file_type = Column(String, nullable=False)
+#     file_name = Column(String, nullable=False)
+#     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-async def get_async_session() -> AsyncGenerator[AsyncSession]:
-    async with async_session() as session:
-        yield session
+# async def create_db_and_tables():
+#     async with engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.create_all)
+
+
+# async def get_async_session() -> AsyncGenerator[AsyncSession]:
+#     async with async_session() as session:
+#         yield session
+
