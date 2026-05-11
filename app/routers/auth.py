@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 
 from app import models, schemas
+from app.core.config import ALGORITHM, SECRET_KEY
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db import get_db
 
@@ -41,3 +42,42 @@ def login(
     access_token = create_access_token(data=token_data)
     return {"access_token": access_token, "token_type": "bearer"}
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        role: str = payload.get("role")
+        if email is None or role is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    return {"email": email, "role": role}
+
+@router.get("/protected")
+def protected_route(current_user: dict = Depends(get_current_user)):
+    return {"message": f"Hello {current_user['email']}! You have access to this protected route."}
+
+def require_role(*allowed_roles: str):
+    def role_checker(current_user: dict = Depends(get_current_user)):
+        if current_user["role"] not in allowed_roles:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return current_user
+    return role_checker
+
+@router.get("/profile")
+def read_profile(current_user: dict = Depends(require_role("user", "admin"))):
+    return {"message": f"Hello {current_user['email']}! Your role is {current_user['role']}."}
+
+@router.get("/user/dashboard")
+def user_dashboard(current_user: dict = Depends(require_role("user"))):
+    return {"message": f"Welcome to the user dashboard, {current_user['email']}!"}
+
+@router.get("/admin/dashboard")
+def admin_dashboard(current_user: dict = Depends(require_role("admin"))):
+    return {"message": f"Welcome to the admin dashboard, {current_user['email']}!"}
